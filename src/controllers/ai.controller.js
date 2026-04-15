@@ -208,18 +208,61 @@ async function callAI(prompt, systemPrompt) {
   throw new Error(`Tüm AI servisleri başarısız oldu:\n${errors.join('\n')}`);
 }
 
-// System prompts
-const TEACHER_PROMPT = `Sen ilkokuldan üniversite seviyesine kadar öğrencilere rehberlik eden, empatik ve sabırlı bir öğretmensin. 
-Soruları adım adım çöz, her adımı açıkla.
+// System prompts - Sınıf seviyesine göre
+function getTeacherPrompt(educationLevel) {
+  const gradeLevel = parseInt(educationLevel) || 9;
+  
+  let complexity = 'orta';
+  let examples = 'günlük hayattan örnekler';
+  
+  if (gradeLevel <= 4) {
+    complexity = 'çok basit';
+    examples = 'oyuncak, meyve, hayvan gibi somut örnekler';
+  } else if (gradeLevel <= 8) {
+    complexity = 'basit';
+    examples = 'günlük hayattan örnekler';
+  } else if (gradeLevel <= 12) {
+    complexity = 'orta';
+    examples = 'gerçek hayat uygulamaları';
+  } else {
+    complexity = 'detaylı';
+    examples = 'akademik ve profesyonel örnekler';
+  }
 
-ÖNEMLI: Matematik sorularında LaTeX kullanma! Basit ve anlaşılır şekilde yaz:
-- Üslü sayılar: x^2, a^3 (LaTeX değil!)
+  return `Sen ${gradeLevel}. sınıf seviyesindeki öğrencilere rehberlik eden, empatik ve sabırlı bir öğretmensin.
+
+SINIF SEVİYESİ: ${gradeLevel}. Sınıf
+AÇIKLAMA KARMAŞIKLIĞI: ${complexity}
+ÖRNEKLER: ${examples}
+
+AÇIKLAMA KURALLARI:
+1. ${gradeLevel}. sınıf öğrencisinin anlayabileceği dil kullan
+2. Adım adım, basit cümlelerle açıkla
+3. Her adımı numaralandır (1., 2., 3. şeklinde)
+4. ${examples} kullanarak somutlaştır
+5. Öğrenciye "Sen yapabilirsin!" motivasyonu ver
+
+MATEMATIK YAZIM KURALLARI (LaTeX KULLANMA!):
+- Üslü sayılar: x² veya x^2 (LaTeX değil!)
 - Kesirler: 3/4, (a+b)/c şeklinde
-- Karekök: √x, √(a+b) şeklinde
-- Çarpma: x*y veya x·y
-- Bölme: a/b veya a÷b
+- Karekök: √x, √(a+b) şeklinde  
+- Çarpma: x × y veya x·y
+- Bölme: a ÷ b veya a/b
 
-Doğrudan cevap verme, öğrencinin anlamasını sağla.`;
+CEVAP FORMATI:
+📚 KONU: [Konuyu belirt]
+
+🎯 ÇÖZÜM:
+[Adım adım çözüm]
+
+💡 İPUCU:
+[Öğrenciye yardımcı ipucu]
+
+✅ SONUÇ:
+[Kısa özet]
+
+Doğrudan cevap verme, öğrencinin düşünmesini ve anlamasını sağla!`;
+}
 
 
 // @desc    Solve question with AI
@@ -234,13 +277,14 @@ exports.solveQuestion = async (req, res) => {
       });
     }
 
-    const prompt = `Eğitim Seviyesi: ${educationLevel || 'lise'}
-Soru Tipi: ${type || 'genel'}
-Soru: ${question}
+    const gradeLevel = educationLevel || req.user.grade || 9;
+    const teacherPrompt = getTeacherPrompt(gradeLevel);
 
-Lütfen bu soruyu adım adım çöz ve açıkla.`;
+    const prompt = `Soru: ${question}
 
-    const answer = await callAI(prompt, TEACHER_PROMPT);
+Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açıkla.`;
+
+    const answer = await callAI(prompt, teacherPrompt);
 
     // Save to database
     const savedQuestion = await Question.create({
@@ -259,6 +303,7 @@ Lütfen bu soruyu adım adım çöz ve açıkla.`;
         question,
         answer,
         type,
+        educationLevel: gradeLevel,
         createdAt: savedQuestion.created_at
       }
     });
@@ -447,14 +492,38 @@ exports.writeComposition = async (req, res) => {
       });
     }
 
-    const prompt = `Eğitim Seviyesi: ${educationLevel || 'lise'}
-Konu: ${topic}
-Kelime Sayısı: ${wordCount || 300}
-Ton: ${tone || 'akademik'}
+    const gradeLevel = educationLevel || req.user.grade || 9;
+    const targetWords = wordCount || 300;
 
-Bu konuda bir kompozisyon/essay yaz. Giriş, gelişme ve sonuç bölümlerini net bir şekilde ayır.`;
+    const prompt = `Konu: ${topic}
+Kelime Sayısı: ${targetWords} kelime
+Sınıf Seviyesi: ${gradeLevel}. Sınıf
 
-    const composition = await callAI(prompt, TEACHER_PROMPT);
+${gradeLevel}. sınıf seviyesinde bir kompozisyon/essay yaz.
+
+YAZIM KURALLARI:
+1. Giriş-Gelişme-Sonuç yapısını kullan
+2. ${gradeLevel}. sınıf seviyesine uygun kelime ve cümle yapısı
+3. Her paragrafı net bir şekilde ayır
+4. Yaklaşık ${targetWords} kelime kullan
+
+FORMAT:
+📝 ${topic.toUpperCase()}
+
+[GİRİŞ]
+[İlk paragraf - konuya giriş]
+
+[GELİŞME]
+[İkinci paragraf - ana fikirler]
+[Üçüncü paragraf - detaylar ve örnekler]
+
+[SONUÇ]
+[Son paragraf - özet ve düşünceler]
+
+💡 YAZIM İPUÇLARI:
+[Bu kompozisyonu yazarken dikkat edilmesi gerekenler]`;
+
+    const composition = await callAI(prompt, `Sen ${gradeLevel}. sınıf seviyesinde Türkçe öğretmenisin. Öğrencilere kompozisyon yazmayı öğretiyorsun.`);
 
     // Save to database
     const savedQuestion = await Question.create({
@@ -471,6 +540,8 @@ Bu konuda bir kompozisyon/essay yaz. Giriş, gelişme ve sonuç bölümlerini ne
         _id: savedQuestion.id,
         topic,
         composition,
+        wordCount: targetWords,
+        educationLevel: gradeLevel,
         createdAt: savedQuestion.created_at
       }
     });
@@ -495,19 +566,39 @@ exports.translateText = async (req, res) => {
       });
     }
 
-    const prompt = `Aşağıdaki metni ${targetLang} diline çevir ve gramer açıklaması ekle:
+    const gradeLevel = req.user.grade || 9;
 
-${text}`;
+    const prompt = `Aşağıdaki metni ${targetLang} diline çevir.
 
-    const translation = await callAI(prompt, 'Sen profesyonel bir çevirmen ve dil öğretmenisin.');
+Metin: ${text}
+
+ÇEVIRI KURALLARI:
+1. Doğal ve akıcı bir çeviri yap
+2. ${gradeLevel}. sınıf seviyesine uygun kelimeler kullan
+3. Çeviriyi şu formatta sun:
+
+📝 ORİJİNAL:
+[Orijinal metin]
+
+🌍 ÇEVİRİ (${targetLang}):
+[Çevrilmiş metin]
+
+📚 GRAMER AÇIKLAMASI:
+[Önemli gramer noktaları - ${gradeLevel}. sınıf seviyesinde]
+
+💡 KELİME HAZINESI:
+[Önemli kelimeler ve anlamları]`;
+
+    const translation = await callAI(prompt, `Sen profesyonel bir çevirmen ve ${gradeLevel}. sınıf seviyesinde dil öğretmenisin.`);
 
     res.json({
       success: true,
       data: {
         original: text,
         translation,
-        sourceLang,
-        targetLang
+        sourceLang: sourceLang || 'auto',
+        targetLang,
+        educationLevel: gradeLevel
       }
     });
   } catch (error) {
