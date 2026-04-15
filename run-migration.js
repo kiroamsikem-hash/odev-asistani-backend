@@ -15,7 +15,7 @@ async function runMigration() {
     console.log('🔄 Veritabanına bağlanılıyor...');
     
     const sqlFile = fs.readFileSync(
-      path.join(__dirname, 'migrations', 'add_new_features.sql'),
+      path.join(__dirname, 'migrations', 'add_new_features_fixed.sql'),
       'utf8'
     );
 
