@@ -40,6 +40,33 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Database check
+app.get('/api/db-check', async (req, res) => {
+  try {
+    const { pool } = require('./config/database');
+    
+    // Check tables
+    const tables = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    
+    res.json({
+      success: true,
+      tables: tables.rows.map(r => r.table_name),
+      message: 'Database connected'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database error',
+      error: error.message
+    });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
