@@ -313,35 +313,35 @@ exports.performOCR = async (req, res) => {
           const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
             {
-              model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Llama 4 Scout Vision Model
+              model: 'meta-llama/llama-4-scout-17b-16e-instruct',
               messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. Matematik formülleri için basit format kullan (x^2, √x, 3/4 gibi). Sadece metni ver, açıklama yapma.'
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: imageUrl
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. Matematik formülleri için basit format kullan (x^2, √x, 3/4 gibi). Sadece metni ver, açıklama yapma.'
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: {
+                        url: imageUrl
+                      }
                     }
-                  }
-                ]
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 2048,
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
+                  ]
+                }
+              ],
+              temperature: 0.1,
+              max_tokens: 2048
             },
-            timeout: 30000
-          }
-        );
+            {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 30000
+            }
+          );
 
         const extractedText = response.data.choices[0].message.content;
         console.log('✅ Groq Vision OCR başarılı!');
@@ -362,9 +362,10 @@ exports.performOCR = async (req, res) => {
           break; // Groq döngüsünden çık, Gemini'yi dene
         }
       }
-    } else {
-      console.log('❌ Groq API key bulunamadı');
     }
+  } else {
+    console.log('❌ Groq API key bulunamadı');
+  }
 
     // 2. GROQ BAŞARISIZSA GEMİNİ VISION DENE
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key') {
@@ -423,8 +424,6 @@ exports.performOCR = async (req, res) => {
       success: false,
       message: 'OCR için çalışan bir AI servisi bulunamadı. Groq API key\'lerinizi kontrol edin.'
     });
-      }
-    }
 
   } catch (error) {
     console.error('❌ OCR işlemi başarısız:', error.message);
