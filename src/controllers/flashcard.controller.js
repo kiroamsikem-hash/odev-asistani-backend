@@ -58,17 +58,20 @@ exports.generateFlashcards = async (req, res) => {
 
     console.log('🎴 Flashcard oluşturuluyor...');
 
-    const systemPrompt = `Sen bir eğitim uzmanısın. Verilen metinden öğrencilerin öğrenmesi gereken en önemli bilgileri çıkarıp flashcard (bilgi kartı) oluşturuyorsun.`;
+    const gradeLevel = req.user.grade || 9;
+    const systemPrompt = `Sen ${gradeLevel}. sınıf seviyesinde bir eğitim uzmanısın. Verilen metinden öğrencilerin öğrenmesi gereken en önemli bilgileri çıkarıp flashcard (bilgi kartı) oluşturuyorsun.`;
     
-    const prompt = `Aşağıdaki metinden ${count} adet flashcard oluştur. Her kart için:
-- Ön yüz (soru veya kavram)
-- Arka yüz (cevap veya açıklama)
-- Zorluk seviyesi (kolay/orta/zor)
+    const prompt = `Aşağıdaki metinden ${count} adet flashcard oluştur.
 
 Metin:
 ${text}
 
-JSON formatında döndür:
+Her kart için:
+- Ön yüz: Kısa soru veya kavram (maksimum 10 kelime)
+- Arka yüz: Net cevap veya açıklama (maksimum 30 kelime)
+- Zorluk: kolay, orta veya zor
+
+SADECE JSON array döndür, başka metin ekleme:
 [
   {
     "front": "Soru veya kavram",
@@ -81,30 +84,36 @@ JSON formatında döndür:
     
     let cards = [];
     try {
+      // JSON'u bul ve parse et
       const jsonMatch = response.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         cards = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('JSON bulunamadı');
       }
     } catch (e) {
       console.log('Flashcards JSON parse edilemedi:', e.message);
+      console.log('Response:', response);
       return res.status(500).json({
         success: false,
-        message: 'Flashcard oluşturulamadı'
+        message: 'Flashcard oluşturulamadı. Lütfen tekrar deneyin.'
       });
     }
 
     // Veritabanına kaydet
     const savedCards = [];
     for (const card of cards) {
-      const saved = await Flashcard.create({
-        userId: req.user.id,
-        front: card.front,
-        back: card.back,
-        subject: subject || 'Genel',
-        difficulty: card.difficulty || 'orta',
-        deckName: deckName || 'Genel'
-      });
-      savedCards.push(saved);
+      if (card.front && card.back) {
+        const saved = await Flashcard.create({
+          userId: req.user.id,
+          front: card.front,
+          back: card.back,
+          subject: subject || 'Genel',
+          difficulty: card.difficulty || 'orta',
+          deckName: deckName || 'Genel'
+        });
+        savedCards.push(saved);
+      }
     }
 
     res.json({

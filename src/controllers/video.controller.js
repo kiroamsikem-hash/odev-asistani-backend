@@ -84,94 +84,87 @@ exports.analyzeVideo = async (req, res) => {
 
     console.log(`📹 Video analizi başlatılıyor: ${videoId}`);
 
-    // YouTube video bilgilerini al (başlık için)
-    const title = `Video: ${videoId}`;
+    const title = `Video Analizi: ${videoId}`;
+    const gradeLevel = req.user.grade || 9;
 
     // AI ile video analizi yap
-    const systemPrompt = `Sen bir eğitim videosu analiz uzmanısın. YouTube videolarını analiz edip öğrencilere yardımcı oluyorsun.`;
+    const systemPrompt = `Sen ${gradeLevel}. sınıf seviyesinde bir eğitim videosu analiz uzmanısın. YouTube videolarını analiz edip öğrencilere yardımcı oluyorsun.`;
     
-    let prompt = '';
     let summary = '';
     let timestamps = [];
     let questions = [];
 
-    if (analysisType === 'summary' || !analysisType) {
-      // Özet çıkar
-      prompt = `YouTube video ID: ${videoId}
-      
-Bu video için:
-1. Ana konuları ve önemli noktaları özetle (3-5 madde)
-2. Öğrencinin öğrenmesi gereken temel kavramları listele
-3. Videonun hangi seviyedeki öğrenciler için uygun olduğunu belirt
+    // Özet çıkar
+    const summaryPrompt = `YouTube Video ID: ${videoId}
 
-Özet ve net bir şekilde yaz.`;
+Bu video için ${gradeLevel}. sınıf seviyesinde:
 
-      summary = await callGroq(prompt, systemPrompt);
+📚 ANA KONULAR:
+[3-5 madde halinde ana konuları listele]
+
+🎯 ÖĞRENİLECEKLER:
+[Öğrencinin bu videodan öğreneceği temel kavramlar]
+
+💡 KİMLER İÇİN:
+[Hangi seviyedeki öğrenciler için uygun]
+
+Basit ve anlaşılır şekilde yaz.`;
+
+    summary = await callGroq(summaryPrompt, systemPrompt);
+
+    // Sorular oluştur
+    const questionsPrompt = `YouTube Video ID: ${videoId}
+
+Bu video içeriğine göre ${gradeLevel}. sınıf seviyesinde 5 adet çoktan seçmeli soru oluştur.
+
+Her soru için JSON formatında:
+{
+  "question": "Soru metni",
+  "options": ["A) Şık 1", "B) Şık 2", "C) Şık 3", "D) Şık 4"],
+  "correct": "A",
+  "explanation": "Kısa açıklama"
+}
+
+Sadece JSON array döndür, başka metin ekleme:
+[...]`;
+
+    const questionsText = await callGroq(questionsPrompt, systemPrompt);
+    
+    try {
+      const jsonMatch = questionsText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        questions = JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      console.log('Sorular JSON parse edilemedi:', e.message);
+      questions = [];
     }
 
-    if (analysisType === 'questions' || analysisType === 'full') {
-      // Soru üret
-      prompt = `YouTube video ID: ${videoId}
+    // Zaman damgaları oluştur
+    const timestampsPrompt = `YouTube Video ID: ${videoId}
 
-Bu video içeriğine göre 5 adet çoktan seçmeli soru oluştur. Her soru için:
-- Soru metni
-- 4 şık (A, B, C, D)
-- Doğru cevap
-- Kısa açıklama
+Bu video için önemli anları belirle (tahmini):
 
-JSON formatında döndür:
-[
-  {
-    "question": "Soru metni",
-    "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
-    "correct": "A",
-    "explanation": "Açıklama"
-  }
-]`;
+JSON formatında:
+{
+  "time": "00:30",
+  "title": "Giriş",
+  "description": "Konuya giriş yapılıyor"
+}
 
-      const questionsText = await callGroq(prompt, systemPrompt);
-      
-      try {
-        // JSON parse et
-        const jsonMatch = questionsText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          questions = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.log('Sorular JSON parse edilemedi:', e.message);
-        questions = [];
+Sadece JSON array döndür:
+[...]`;
+
+    const timestampsText = await callGroq(timestampsPrompt, systemPrompt);
+    
+    try {
+      const jsonMatch = timestampsText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        timestamps = JSON.parse(jsonMatch[0]);
       }
-    }
-
-    if (analysisType === 'timestamps' || analysisType === 'full') {
-      // Zaman damgaları oluştur
-      prompt = `YouTube video ID: ${videoId}
-
-Bu video için önemli anları belirle ve zaman damgaları oluştur:
-- Her önemli konu için tahmini zaman (örn: 00:30, 02:15, 05:40)
-- Konu başlığı
-- Kısa açıklama
-
-JSON formatında döndür:
-[
-  {
-    "time": "00:30",
-    "title": "Giriş",
-    "description": "Konuya giriş"
-  }
-]`;
-
-      const timestampsText = await callGroq(prompt, systemPrompt);
-      
-      try {
-        const jsonMatch = timestampsText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          timestamps = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        console.log('Timestamps JSON parse edilemedi:', e.message);
-        timestamps = [];
-      }
+    } catch (e) {
+      console.log('Timestamps JSON parse edilemedi:', e.message);
+      timestamps = [];
     }
 
     // Veritabanına kaydet
