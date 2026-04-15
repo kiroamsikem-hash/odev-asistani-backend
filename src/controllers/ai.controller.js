@@ -314,7 +314,7 @@ exports.performOCR = async (req, res) => {
             'https://api.groq.com/openai/v1/chat/completions',
             {
               model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Llama 4 Scout Vision Model
-            messages: [
+              messages: [
               {
                 role: 'user',
                 content: [
