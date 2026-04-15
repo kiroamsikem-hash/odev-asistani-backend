@@ -67,6 +67,20 @@ app.get('/api/db-check', async (req, res) => {
   }
 });
 
+// Test new features endpoints
+app.get('/api/test-features', (req, res) => {
+  res.json({
+    success: true,
+    message: 'New features endpoints are available',
+    endpoints: {
+      video: '/api/video/analyze',
+      flashcards: '/api/flashcards/generate',
+      study: '/api/study/sessions'
+    },
+    note: 'These endpoints require authentication'
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
