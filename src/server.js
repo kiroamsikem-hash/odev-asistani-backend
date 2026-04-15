@@ -31,6 +31,9 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/questions', require('./routes/question.routes'));
 app.use('/api/ai', require('./routes/ai.routes'));
 app.use('/api/users', require('./routes/user.routes'));
+app.use('/api/video', require('./routes/video.routes'));
+app.use('/api/flashcards', require('./routes/flashcard.routes'));
+app.use('/api/study', require('./routes/study.routes'));
 
 // Health check
 app.get('/health', (req, res) => {
