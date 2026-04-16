@@ -34,6 +34,11 @@ router.post('/solve', aiController.solveQuestion);
 // @access  Private
 router.post('/ocr', upload.single('image'), aiController.performOCR);
 
+// @route   POST /api/ai/solve-image
+// @desc    Solve question from image (direct AI analysis)
+// @access  Private
+router.post('/solve-image', upload.single('image'), aiController.solveImageQuestion);
+
 // @route   POST /api/ai/compose
 // @desc    Write composition/essay
 // @access  Private

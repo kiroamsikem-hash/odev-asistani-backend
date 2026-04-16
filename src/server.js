@@ -40,6 +40,8 @@ app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/video', require('./routes/video.routes'));
 app.use('/api/flashcards', require('./routes/flashcard.routes'));
 app.use('/api/study', require('./routes/study.routes'));
+app.use('/api/premium', require('./routes/premium.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -92,7 +94,7 @@ app.get('/api/migration-status', async (req, res) => {
   try {
     const { pool } = require('./config/database');
     
-    const requiredTables = ['video_notes', 'flashcards', 'study_sessions'];
+    const requiredTables = ['video_notes', 'flashcards', 'study_sessions', 'premium_packages', 'premium_transactions'];
     const missingTables = [];
     
     for (const tableName of requiredTables) {
@@ -113,9 +115,9 @@ app.get('/api/migration-status', async (req, res) => {
       res.json({
         success: false,
         migrationNeeded: true,
-        message: '⚠️ Migration gerekli! Render Shell\'de "node run-migration.js" komutunu çalıştır.',
+        message: '⚠️ Migration gerekli! /api/run-migration endpoint\'ini çağır.',
         missingTables,
-        instructions: 'Render Dashboard → Shell → node run-migration.js'
+        instructions: 'GET /api/run-migration'
       });
     } else {
       res.json({
@@ -129,6 +131,66 @@ app.get('/api/migration-status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Database kontrol hatası',
+      error: error.message
+    });
+  }
+});
+
+// Run migration endpoint (for when you don't have shell access)
+app.get('/api/run-migration', async (req, res) => {
+  try {
+    const { pool } = require('./config/database');
+    const fs = require('fs');
+    const path = require('path');
+    
+    const results = [];
+    
+    // Run features migration
+    try {
+      const featuresSql = fs.readFileSync(
+        path.join(__dirname, '../migrations/add_new_features_fixed.sql'),
+        'utf8'
+      );
+      await pool.query(featuresSql);
+      results.push('✅ Features migration completed');
+    } catch (error) {
+      if (error.message.includes('already exists')) {
+        results.push('ℹ️ Features tables already exist');
+      } else {
+        throw error;
+      }
+    }
+    
+    // Run premium migration
+    try {
+      const premiumSql = fs.readFileSync(
+        path.join(__dirname, '../migrations/add_premium_system.sql'),
+        'utf8'
+      );
+      await pool.query(premiumSql);
+      results.push('✅ Premium system migration completed');
+    } catch (error) {
+      if (error.message.includes('already exists')) {
+        results.push('ℹ️ Premium tables already exist');
+      } else {
+        throw error;
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: '✅ Migration başarıyla tamamlandı!',
+      results,
+      tables: {
+        features: ['video_notes', 'flashcards', 'study_sessions'],
+        premium: ['premium_packages', 'premium_transactions']
+      },
+      admins: ['byazar1628@gmail.com', 'myazar483@gmail.com']
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Migration hatası',
       error: error.message
     });
   }

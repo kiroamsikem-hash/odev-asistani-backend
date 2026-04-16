@@ -729,3 +729,158 @@ ${text}`;
 };
 
 
+
+
+// @desc    Solve question from image (direct AI analysis)
+exports.solveImageQuestion = async (req, res) => {
+  try {
+    console.log('🖼️ Solve-image endpoint çağrıldı');
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Resim dosyası gereklidir'
+      });
+    }
+
+    const gradeLevel = req.user.grade || 9;
+    console.log('📸 Fotoğraf analiz ediliyor...');
+
+    // Convert image to base64
+    const base64Image = req.file.buffer.toString('base64');
+    const imageUrl = `data:${req.file.mimetype};base64,${base64Image}`;
+
+    // Try Groq Vision first
+    const groqKeys = [
+      process.env.GROQ_API_KEY,
+      process.env.GROQ_API_KEY_2,
+      process.env.GROQ_API_KEY_3,
+      process.env.GROQ_API_KEY_4,
+      process.env.GROQ_API_KEY_5,
+    ].filter(key => key && key !== 'your-groq-api-key');
+
+    let answer = null;
+    let question = 'Fotoğraftaki soru';
+
+    if (groqKeys.length > 0) {
+      for (const apiKey of groqKeys) {
+        try {
+          console.log(`🤖 Groq Vision ile analiz... (${groqKeys.indexOf(apiKey) + 1}/${groqKeys.length})`);
+          
+          const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+              model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+              messages: [
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text',
+                      text: `Sen ${gradeLevel}. sınıf seviyesinde bir öğretmensin. Bu görseldeki soruyu analiz et ve çöz.
+
+ADIMLAR:
+1. Görseldeki soruyu oku ve anla
+2. Soruyu adım adım çöz
+3. Her adımı açıkla
+4. Sonucu net bir şekilde belirt
+
+Basit format kullan, LaTeX kullanma! Üslü sayılar için x^2, kesirler için 3/4 kullan.`
+                    },
+                    {
+                      type: 'image_url',
+                      image_url: { url: imageUrl }
+                    }
+                  ]
+                }
+              ],
+              temperature: 0.7,
+              max_tokens: 2000
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 45000
+            }
+          );
+
+          answer = response.data.choices[0].message.content;
+          console.log('✅ Groq Vision başarılı!');
+          break;
+        } catch (error) {
+          console.log(`❌ Groq key ${groqKeys.indexOf(apiKey) + 1} hatası`);
+          if (groqKeys.indexOf(apiKey) === groqKeys.length - 1) {
+            throw new Error('Tüm Groq API key\'leri başarısız');
+          }
+        }
+      }
+    }
+
+    // If Groq failed, try Gemini Vision
+    if (!answer && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key') {
+      try {
+        console.log('🤖 Gemini Vision deneniyor...');
+        
+        const response = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          {
+            contents: [{
+              parts: [
+                {
+                  text: `Sen ${gradeLevel}. sınıf seviyesinde bir öğretmensin. Bu görseldeki soruyu analiz et ve çöz. Adım adım açıkla.`
+                },
+                {
+                  inline_data: {
+                    mime_type: req.file.mimetype,
+                    data: base64Image
+                  }
+                }
+              ]
+            }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048
+            }
+          },
+          { timeout: 45000 }
+        );
+
+        answer = response.data.candidates[0].content.parts[0].text;
+        console.log('✅ Gemini Vision başarılı!');
+      } catch (error) {
+        console.log('❌ Gemini Vision hatası:', error.message);
+      }
+    }
+
+    if (!answer) {
+      throw new Error('Fotoğraf analiz edilemedi. Lütfen tekrar deneyin.');
+    }
+
+    // Save to database
+    const savedQuestion = await Question.create({
+      userId: req.user.id,
+      type: 'genel',
+      question,
+      answer
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: savedQuestion.id,
+        question,
+        answer,
+        createdAt: savedQuestion.created_at
+      }
+    });
+  } catch (error) {
+    console.error('❌ Solve-image hatası:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Fotoğraf analiz edilemedi',
+      error: error.message
+    });
+  }
+};

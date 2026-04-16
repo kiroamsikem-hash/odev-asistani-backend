@@ -21,16 +21,16 @@ exports.checkDailyLimit = async (req, res, next) => {
     // Get updated user
     const updatedUser = await User.findById(req.user.id);
     
-    const limit = updatedUser.is_premium 
-      ? parseInt(process.env.DAILY_QUESTION_LIMIT_PREMIUM) 
-      : parseInt(process.env.DAILY_QUESTION_LIMIT_FREE);
+    // Use daily_limit from database (set based on premium tier)
+    const limit = updatedUser.daily_limit || 5;
     
     if (updatedUser.daily_question_count >= limit) {
       return res.status(429).json({
         success: false,
         message: 'Günlük soru limitiniz doldu',
         limit,
-        used: updatedUser.daily_question_count
+        used: updatedUser.daily_question_count,
+        premiumTier: updatedUser.premium_tier || 'free'
       });
     }
     
