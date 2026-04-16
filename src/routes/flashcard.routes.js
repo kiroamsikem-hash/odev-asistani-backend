@@ -11,6 +11,11 @@ router.use(protect);
 // @access  Private
 router.post('/generate', flashcardController.generateFlashcards);
 
+// @route   POST /api/flashcards/generate-from-video
+// @desc    Generate flashcards from YouTube video
+// @access  Private
+router.post('/generate-from-video', flashcardController.generateFromVideo);
+
 // @route   POST /api/flashcards
 // @desc    Create single flashcard
 // @access  Private

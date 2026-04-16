@@ -44,6 +44,116 @@ async function callGroq(prompt, systemPrompt) {
   }
 }
 
+// @desc    Generate flashcards from YouTube video
+exports.generateFromVideo = async (req, res) => {
+  try {
+    const { videoUrl, count = 10, deckName } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'Video URL gereklidir'
+      });
+    }
+
+    console.log('🎴 Video\'dan flashcard oluşturuluyor...');
+
+    const videoId = extractYouTubeId(videoUrl);
+    if (!videoId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Geçerli bir YouTube URL\'si giriniz'
+      });
+    }
+
+    const gradeLevel = req.user.grade || 9;
+    const systemPrompt = `Sen ${gradeLevel}. sınıf seviyesinde bir eğitim uzmanısın. YouTube videolarından öğrencilerin öğrenmesi gereken en önemli bilgileri çıkarıp flashcard oluşturuyorsun.`;
+    
+    // Önce video özetini al
+    const summaryPrompt = `YouTube Video ID: ${videoId}
+
+Bu eğitim videosundan ${count} adet flashcard oluştur.
+
+Her kart için:
+- Ön yüz: Videodaki önemli soru veya kavram
+- Arka yüz: Net cevap veya açıklama
+- Zorluk: kolay, orta veya zor
+
+SADECE JSON array döndür:
+[
+  {
+    "front": "Soru veya kavram",
+    "back": "Cevap veya açıklama",
+    "difficulty": "orta"
+  }
+]`;
+
+    const response = await callGroq(summaryPrompt, systemPrompt);
+    
+    let cards = [];
+    try {
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        cards = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('JSON bulunamadı');
+      }
+    } catch (e) {
+      console.log('Video flashcards JSON parse edilemedi:', e.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Video analiz edilemedi. Lütfen tekrar deneyin.'
+      });
+    }
+
+    // Veritabanına kaydet
+    const savedCards = [];
+    for (const card of cards) {
+      if (card.front && card.back) {
+        const saved = await Flashcard.create({
+          userId: req.user.id,
+          front: card.front,
+          back: card.back,
+          subject: 'Video',
+          difficulty: card.difficulty || 'orta',
+          deckName: deckName || `Video: ${videoId}`
+        });
+        savedCards.push(saved);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: savedCards,
+      count: savedCards.length,
+      videoId
+    });
+  } catch (error) {
+    console.error('Video flashcard oluşturma hatası:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Video flashcard oluşturulurken hata oluştu',
+      error: error.message
+    });
+  }
+};
+
+// Extract YouTube video ID
+function extractYouTubeId(url) {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+    /youtube\.com\/embed\/([^&\n?#]+)/,
+    /youtube\.com\/v\/([^&\n?#]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  
+  return null;
+}
+
 // @desc    Generate flashcards from text
 exports.generateFlashcards = async (req, res) => {
   try {
