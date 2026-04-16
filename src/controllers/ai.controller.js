@@ -413,17 +413,40 @@ exports.performOCR = async (req, res) => {
 
         let extractedText = response.data.choices[0].message.content;
         
-        // LaTeX ve özel karakterleri temizle
+        // Agresif LaTeX ve özel karakter temizleme
         extractedText = extractedText
+          // LaTeX komutları
           .replace(/\$\$/g, '')
           .replace(/\$/g, '')
-          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
           .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+          .replace(/\\sqrt/g, '√')
           .replace(/\\times/g, '×')
           .replace(/\\div/g, '÷')
           .replace(/\\cdot/g, '·')
+          .replace(/\\pm/g, '±')
+          .replace(/\\leq/g, '≤')
+          .replace(/\\geq/g, '≥')
+          .replace(/\\neq/g, '≠')
+          .replace(/\\approx/g, '≈')
+          .replace(/\\infty/g, '∞')
+          .replace(/\\pi/g, 'π')
+          .replace(/\\theta/g, 'θ')
+          .replace(/\\alpha/g, 'α')
+          .replace(/\\beta/g, 'β')
+          .replace(/\\gamma/g, 'γ')
+          .replace(/\\Delta/g, 'Δ')
+          .replace(/\\sum/g, 'Σ')
+          // Tüm backslash'leri temizle
           .replace(/\\/g, '')
+          // Özel karakterler
           .replace(/&/g, '')
+          .replace(/\{/g, '(')
+          .replace(/\}/g, ')')
+          .replace(/\[/g, '(')
+          .replace(/\]/g, ')')
+          // Çoklu boşlukları tek boşluğa
+          .replace(/\s+/g, ' ')
           .trim();
         
         console.log('✅ Groq Vision OCR başarılı!');
@@ -486,17 +509,40 @@ exports.performOCR = async (req, res) => {
         if (response.data.candidates && response.data.candidates[0]) {
           let extractedText = response.data.candidates[0].content.parts[0].text;
           
-          // LaTeX ve özel karakterleri temizle
+          // Agresif LaTeX ve özel karakter temizleme
           extractedText = extractedText
+            // LaTeX komutları
             .replace(/\$\$/g, '')
             .replace(/\$/g, '')
-            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)')
             .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+            .replace(/\\sqrt/g, '√')
             .replace(/\\times/g, '×')
             .replace(/\\div/g, '÷')
             .replace(/\\cdot/g, '·')
+            .replace(/\\pm/g, '±')
+            .replace(/\\leq/g, '≤')
+            .replace(/\\geq/g, '≥')
+            .replace(/\\neq/g, '≠')
+            .replace(/\\approx/g, '≈')
+            .replace(/\\infty/g, '∞')
+            .replace(/\\pi/g, 'π')
+            .replace(/\\theta/g, 'θ')
+            .replace(/\\alpha/g, 'α')
+            .replace(/\\beta/g, 'β')
+            .replace(/\\gamma/g, 'γ')
+            .replace(/\\Delta/g, 'Δ')
+            .replace(/\\sum/g, 'Σ')
+            // Tüm backslash'leri temizle
             .replace(/\\/g, '')
+            // Özel karakterler
             .replace(/&/g, '')
+            .replace(/\{/g, '(')
+            .replace(/\}/g, ')')
+            .replace(/\[/g, '(')
+            .replace(/\]/g, ')')
+            // Çoklu boşlukları tek boşluğa
+            .replace(/\s+/g, ' ')
             .trim();
           
           console.log('✅ Gemini Vision OCR başarılı!');
@@ -547,40 +593,21 @@ exports.writeComposition = async (req, res) => {
     const targetWords = wordCount || 500; // Daha uzun kompozisyon
 
     const prompt = `Konu: ${topic}
-Kelime Sayısı: ${targetWords} kelime (ÇOK DETAYLI YAZ!)
-Sınıf Seviyesi: ${gradeLevel}. Sınıf
 
-${gradeLevel}. sınıf seviyesinde ÇOK DETAYLI bir kompozisyon/essay yaz.
+ÖNEMLİ: Kompozisyonun NASIL YAZILACAĞINI ANLATMA! Direkt kompozisyonu YAZ!
 
-YAZIM KURALLARI:
-1. Giriş-Gelişme-Sonuç yapısını kullan
-2. ${gradeLevel}. sınıf seviyesine uygun kelime ve cümle yapısı
-3. Her paragrafı net bir şekilde ayır
-4. EN AZ ${targetWords} kelime kullan
-5. ÇOK DETAYLI YAZ - Her fikri genişlet
-6. Örnekler ver, açıklamalar yap
-7. Zengin kelime hazinesi kullan
+${gradeLevel}. sınıf seviyesinde ÇOK DETAYLI bir kompozisyon yaz.
 
-FORMAT:
-📝 ${topic.toUpperCase()}
+KURALLAR:
+1. Direkt kompozisyonu yaz, açıklama yapma!
+2. EN AZ ${targetWords} kelime
+3. Giriş-Gelişme-Sonuç yapısı
+4. Bol örnek ve detay
+5. ${gradeLevel}. sınıf seviyesine uygun dil
 
-[GİRİŞ - 2-3 paragraf]
-[Konuya giriş, neden önemli, genel bakış]
+Şimdi direkt kompozisyonu yaz:`;
 
-[GELİŞME - 4-5 paragraf]
-[Ana fikirler - HER FİKRİ DETAYLI AÇIKLA]
-[Örnekler ve detaylar - BOL ÖRNEK VER]
-[Farklı bakış açıları - DETAYLI ANLAT]
-
-[SONUÇ - 2 paragraf]
-[Özet ve düşünceler - DETAYLI SONUÇ]
-
-💡 YAZIM İPUÇLARI:
-[Bu kompozisyonu yazarken dikkat edilmesi gerekenler]
-
-ÖNEMLİ: Kompozisyon EN AZ ${targetWords} kelime olmalı. Çok detaylı yaz!`;
-
-    const composition = await callAI(prompt, `Sen ${gradeLevel}. sınıf seviyesinde Türkçe öğretmenisin. Öğrencilere ÇOK DETAYLI kompozisyon yazmayı öğretiyorsun. Her konuyu derinlemesine işle, bol örnek ver.`);
+    const composition = await callAI(prompt, `Sen ${gradeLevel}. sınıf seviyesinde Türkçe öğretmenisin. Kompozisyonun NASIL YAZILACAĞINI ANLATMA! Direkt kompozisyonu YAZ! Öğrenciye hazır kompozisyon ver.`);
 
     // Save to database
     const savedQuestion = await Question.create({
