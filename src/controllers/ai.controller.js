@@ -242,19 +242,22 @@ AÇIKLAMA KURALLARI:
 3. Her adımı numaralandır (1., 2., 3. şeklinde)
 4. ${examples} kullanarak somutlaştır
 5. Öğrenciye "Sen yapabilirsin!" motivasyonu ver
+6. ÇOK DETAYLI AÇIKLA - Her adımı ayrıntılı anlat
 
-MATEMATIK YAZIM KURALLARI (LaTeX KULLANMA!):
-- Üslü sayılar: x² veya x^2 (LaTeX değil!)
-- Kesirler: 3/4, (a+b)/c şeklinde
-- Karekök: √x, √(a+b) şeklinde  
-- Çarpma: x × y veya x·y
-- Bölme: a ÷ b veya a/b
+MATEMATİK YAZIM KURALLARI (SADECE BASİT FORMAT!):
+- Üslü sayılar: x² veya x^2 (LaTeX KULLANMA!)
+- Kesirler: 3/4, (a+b)/c şeklinde (LaTeX KULLANMA!)
+- Karekök: √x, √(a+b) şeklinde (LaTeX KULLANMA!)
+- Çarpma: x × y veya x·y (LaTeX KULLANMA!)
+- Bölme: a ÷ b veya a/b (LaTeX KULLANMA!)
+- ASLA $ veya & işareti kullanma!
+- ASLA \\frac, \\sqrt gibi LaTeX komutları kullanma!
 
 CEVAP FORMATI:
 📚 KONU: [Konuyu belirt]
 
 🎯 ÇÖZÜM:
-[Adım adım çözüm]
+[Adım adım ÇOK DETAYLI çözüm - her adımı ayrıntılı açıkla]
 
 💡 İPUCU:
 [Öğrenciye yardımcı ipucu]
@@ -385,7 +388,7 @@ exports.performOCR = async (req, res) => {
                   content: [
                     {
                       type: 'text',
-                      text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. Matematik formülleri için basit format kullan (x^2, √x, 3/4 gibi). Sadece metni ver, açıklama yapma.'
+                      text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. ÖNEMLİ: Basit format kullan, LaTeX kullanma! Üslü sayılar için x^2, kesirler için 3/4, karekök için √x kullan. ASLA $ veya & işareti kullanma! ASLA \\frac, \\sqrt gibi LaTeX komutları kullanma! Sadece temiz, okunaklı metni ver.'
                     },
                     {
                       type: 'image_url',
@@ -408,7 +411,21 @@ exports.performOCR = async (req, res) => {
             }
           );
 
-        const extractedText = response.data.choices[0].message.content;
+        let extractedText = response.data.choices[0].message.content;
+        
+        // LaTeX ve özel karakterleri temizle
+        extractedText = extractedText
+          .replace(/\$\$/g, '')
+          .replace(/\$/g, '')
+          .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+          .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+          .replace(/\\times/g, '×')
+          .replace(/\\div/g, '÷')
+          .replace(/\\cdot/g, '·')
+          .replace(/\\/g, '')
+          .replace(/&/g, '')
+          .trim();
+        
         console.log('✅ Groq Vision OCR başarılı!');
         console.log('Çıkarılan metin uzunluğu:', extractedText.length, 'karakter');
         
@@ -443,7 +460,7 @@ exports.performOCR = async (req, res) => {
             contents: [{
               parts: [
                 {
-                  text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. Matematik formülleri için basit format kullan (x^2, √x, 3/4 gibi). Sadece metni ver, açıklama yapma.'
+                  text: 'Bu görseldeki tüm metni, sayıları ve matematiksel ifadeleri dikkatle çıkar. ÖNEMLİ: Basit format kullan, LaTeX kullanma! Üslü sayılar için x^2, kesirler için 3/4, karekök için √x kullan. ASLA $ veya & işareti kullanma! ASLA \\frac, \\sqrt gibi LaTeX komutları kullanma! Sadece temiz, okunaklı metni ver.'
                 },
                 {
                   inline_data: {
@@ -467,7 +484,21 @@ exports.performOCR = async (req, res) => {
         );
 
         if (response.data.candidates && response.data.candidates[0]) {
-          const extractedText = response.data.candidates[0].content.parts[0].text;
+          let extractedText = response.data.candidates[0].content.parts[0].text;
+          
+          // LaTeX ve özel karakterleri temizle
+          extractedText = extractedText
+            .replace(/\$\$/g, '')
+            .replace(/\$/g, '')
+            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1/$2)')
+            .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+            .replace(/\\times/g, '×')
+            .replace(/\\div/g, '÷')
+            .replace(/\\cdot/g, '·')
+            .replace(/\\/g, '')
+            .replace(/&/g, '')
+            .trim();
+          
           console.log('✅ Gemini Vision OCR başarılı!');
           console.log('Çıkarılan metin uzunluğu:', extractedText.length, 'karakter');
           
@@ -513,37 +544,43 @@ exports.writeComposition = async (req, res) => {
     }
 
     const gradeLevel = educationLevel || req.user.grade || 9;
-    const targetWords = wordCount || 300;
+    const targetWords = wordCount || 500; // Daha uzun kompozisyon
 
     const prompt = `Konu: ${topic}
-Kelime Sayısı: ${targetWords} kelime
+Kelime Sayısı: ${targetWords} kelime (ÇOK DETAYLI YAZ!)
 Sınıf Seviyesi: ${gradeLevel}. Sınıf
 
-${gradeLevel}. sınıf seviyesinde bir kompozisyon/essay yaz.
+${gradeLevel}. sınıf seviyesinde ÇOK DETAYLI bir kompozisyon/essay yaz.
 
 YAZIM KURALLARI:
 1. Giriş-Gelişme-Sonuç yapısını kullan
 2. ${gradeLevel}. sınıf seviyesine uygun kelime ve cümle yapısı
 3. Her paragrafı net bir şekilde ayır
-4. Yaklaşık ${targetWords} kelime kullan
+4. EN AZ ${targetWords} kelime kullan
+5. ÇOK DETAYLI YAZ - Her fikri genişlet
+6. Örnekler ver, açıklamalar yap
+7. Zengin kelime hazinesi kullan
 
 FORMAT:
 📝 ${topic.toUpperCase()}
 
-[GİRİŞ]
-[İlk paragraf - konuya giriş]
+[GİRİŞ - 2-3 paragraf]
+[Konuya giriş, neden önemli, genel bakış]
 
-[GELİŞME]
-[İkinci paragraf - ana fikirler]
-[Üçüncü paragraf - detaylar ve örnekler]
+[GELİŞME - 4-5 paragraf]
+[Ana fikirler - HER FİKRİ DETAYLI AÇIKLA]
+[Örnekler ve detaylar - BOL ÖRNEK VER]
+[Farklı bakış açıları - DETAYLI ANLAT]
 
-[SONUÇ]
-[Son paragraf - özet ve düşünceler]
+[SONUÇ - 2 paragraf]
+[Özet ve düşünceler - DETAYLI SONUÇ]
 
 💡 YAZIM İPUÇLARI:
-[Bu kompozisyonu yazarken dikkat edilmesi gerekenler]`;
+[Bu kompozisyonu yazarken dikkat edilmesi gerekenler]
 
-    const composition = await callAI(prompt, `Sen ${gradeLevel}. sınıf seviyesinde Türkçe öğretmenisin. Öğrencilere kompozisyon yazmayı öğretiyorsun.`);
+ÖNEMLİ: Kompozisyon EN AZ ${targetWords} kelime olmalı. Çok detaylı yaz!`;
+
+    const composition = await callAI(prompt, `Sen ${gradeLevel}. sınıf seviyesinde Türkçe öğretmenisin. Öğrencilere ÇOK DETAYLI kompozisyon yazmayı öğretiyorsun. Her konuyu derinlemesine işle, bol örnek ver.`);
 
     // Save to database
     const savedQuestion = await Question.create({
