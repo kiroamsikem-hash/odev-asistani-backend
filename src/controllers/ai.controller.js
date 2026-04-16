@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Question = require('../models/Question.model');
+const { getCachedAnswer, cacheAnswer } = require('../config/redis');
 
 // AI Providers - Sırayla denenecek
 const AI_PROVIDERS = [
@@ -278,6 +279,19 @@ exports.solveQuestion = async (req, res) => {
     }
 
     const gradeLevel = educationLevel || req.user.grade || 9;
+    
+    // 🚀 CACHE KONTROLÜ - Benzer soru daha önce çözüldü mü?
+    const cached = await getCachedAnswer(question, gradeLevel);
+    if (cached) {
+      return res.json({
+        success: true,
+        data: {
+          ...cached,
+          fromCache: true
+        }
+      });
+    }
+
     const teacherPrompt = getTeacherPrompt(gradeLevel);
 
     const prompt = `Soru: ${question}
@@ -295,17 +309,23 @@ Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açı
       subject: type
     });
 
+    const responseData = {
+      id: savedQuestion.id,
+      _id: savedQuestion.id,
+      question,
+      answer,
+      type,
+      educationLevel: gradeLevel,
+      createdAt: savedQuestion.created_at,
+      fromCache: false
+    };
+
+    // 🚀 CACHE'E KAYDET - Bir dahaki sefere AI çağrısı yapma
+    await cacheAnswer(question, gradeLevel, responseData);
+
     res.json({
       success: true,
-      data: {
-        id: savedQuestion.id,
-        _id: savedQuestion.id,
-        question,
-        answer,
-        type,
-        educationLevel: gradeLevel,
-        createdAt: savedQuestion.created_at
-      }
+      data: responseData
     });
   } catch (error) {
     res.status(500).json({

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const aiController = require('../controllers/ai.controller');
+const socraticController = require('../controllers/socratic.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { checkDailyLimit } = require('../middleware/rateLimit.middleware');
 
@@ -47,5 +48,15 @@ router.post('/translate', aiController.translateText);
 // @desc    Simplify explanation
 // @access  Private
 router.post('/simplify', aiController.simplifyExplanation);
+
+// @route   POST /api/ai/socratic/hint
+// @desc    Get Socratic hint (doesn't give direct answer)
+// @access  Private
+router.post('/socratic/hint', socraticController.getSocraticHint);
+
+// @route   POST /api/ai/socratic/check
+// @desc    Check student's answer
+// @access  Private
+router.post('/socratic/check', socraticController.checkStudentAnswer);
 
 module.exports = router;

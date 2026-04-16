@@ -8,10 +8,16 @@ const path = require('path');
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const { connectDB } = require('./config/database');
+const { connectRedis } = require('./config/redis');
 
 // Connect to database
 connectDB().catch(err => {
   console.error('Database connection failed:', err);
+});
+
+// Connect to Redis (optional - for caching)
+connectRedis().catch(err => {
+  console.log('Redis connection skipped:', err.message);
 });
 
 
@@ -79,6 +85,53 @@ app.get('/api/test-features', (req, res) => {
     },
     note: 'These endpoints require authentication'
   });
+});
+
+// Check if migration is needed
+app.get('/api/migration-status', async (req, res) => {
+  try {
+    const { pool } = require('./config/database');
+    
+    const requiredTables = ['video_notes', 'flashcards', 'study_sessions'];
+    const missingTables = [];
+    
+    for (const tableName of requiredTables) {
+      const result = await pool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = $1
+        )
+      `, [tableName]);
+      
+      if (!result.rows[0].exists) {
+        missingTables.push(tableName);
+      }
+    }
+    
+    if (missingTables.length > 0) {
+      res.json({
+        success: false,
+        migrationNeeded: true,
+        message: '⚠️ Migration gerekli! Render Shell\'de "node run-migration.js" komutunu çalıştır.',
+        missingTables,
+        instructions: 'Render Dashboard → Shell → node run-migration.js'
+      });
+    } else {
+      res.json({
+        success: true,
+        migrationNeeded: false,
+        message: '✅ Tüm tablolar mevcut! Yeni özellikler kullanıma hazır.',
+        tables: requiredTables
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Database kontrol hatası',
+      error: error.message
+    });
+  }
 });
 
 // Error handling middleware
