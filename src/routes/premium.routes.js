@@ -8,12 +8,12 @@ const {
   getMyTransactions
 } = require('../controllers/premium.controller');
 
-// All routes require authentication
-router.use(protect);
-
+// Public route - no auth required
 router.get('/packages', getPackages);
-router.post('/purchase', purchasePackage);
-router.get('/status', checkPremiumStatus);
-router.get('/transactions', getMyTransactions);
+
+// Protected routes - require authentication
+router.post('/purchase', protect, purchasePackage);
+router.get('/status', protect, checkPremiumStatus);
+router.get('/transactions', protect, getMyTransactions);
 
 module.exports = router;
