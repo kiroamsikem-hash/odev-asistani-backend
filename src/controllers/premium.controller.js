@@ -4,14 +4,31 @@ const logger = require('../utils/logger');
 // @desc    Get premium packages
 exports.getPackages = async (req, res) => {
   try {
+    logger.info('📦 Premium paketler istendi');
+    
     const query = 'SELECT * FROM premium_packages WHERE is_active = TRUE ORDER BY price ASC';
     const result = await pool.query(query);
+    
+    logger.success('✅ Premium paketler getirildi', { count: result.rows.length });
     
     res.json({
       success: true,
       data: result.rows
     });
   } catch (error) {
+    logger.error('❌ Premium paketler getirilemedi', error);
+    
+    // Check if table exists
+    if (error.message.includes('does not exist')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Premium paketler tablosu bulunamadı. Migration gerekli.',
+        error: error.message,
+        migrationNeeded: true,
+        migrationUrl: '/api/run-migration'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Paketler yüklenemedi',
