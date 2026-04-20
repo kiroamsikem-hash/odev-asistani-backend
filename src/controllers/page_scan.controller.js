@@ -173,7 +173,7 @@ exports.scanPage = async (req, res) => {
       });
       return res.status(400).json({
         success: false,
-        message: 'Resim dosyası geçersiz veya boş'
+        message: 'Resim dosyası çok küçük veya boş. Lütfen geçerli bir fotoğraf yükleyin.'
       });
     }
 
@@ -195,7 +195,7 @@ exports.scanPage = async (req, res) => {
       });
       return res.status(400).json({
         success: false,
-        message: 'Resim içeriği geçersiz'
+        message: 'Resim içeriği geçersiz. Lütfen başka bir fotoğraf deneyin.'
       });
     }
     
@@ -244,12 +244,8 @@ exports.scanPage = async (req, res) => {
     
     res.status(500).json({
       success: false,
-      message: 'Sayfa taranamadı',
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack,
-        response: error.response?.data
-      } : undefined
+      message: 'Sayfa taranamadı. Lütfen tekrar deneyin.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   } finally {
     logger.info('📄 ========== SAYFA TARAMA BİTTİ ==========\n');
