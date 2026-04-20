@@ -50,46 +50,27 @@ async function callGroq(prompt, systemPrompt) {
   }
 }
 
-// Groq Vision API
-async function analyzeImageWithGroqVision(imageBase64) {
-  logger.info('🖼️ Groq Vision API ile görsel analizi başlatılıyor');
+// Gemini Vision API
+async function analyzeImageWithGeminiVision(imageBase64) {
+  logger.info('🖼️ Gemini Vision API ile görsel analizi başlatılıyor');
   
   try {
-    const groqKeys = [
-      process.env.GROQ_API_KEY,
-      process.env.GROQ_API_KEY_2,
-      process.env.GROQ_API_KEY_3,
-      process.env.GROQ_API_KEY_4,
-      process.env.GROQ_API_KEY_5,
-    ].filter(key => key && key !== 'your-groq-api-key');
-
-    if (groqKeys.length === 0) {
-      throw new Error('Groq API key bulunamadı');
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your-gemini-api-key') {
+      throw new Error('GEMINI_API_KEY bulunamadı');
     }
 
-    logger.debug('Groq Vision API key sayısı', { 
-      count: groqKeys.length,
+    logger.debug('Gemini API key mevcut', { 
+      keyLength: process.env.GEMINI_API_KEY.length,
       imageSize: imageBase64.length 
     });
 
-    const imageUrl = `data:image/jpeg;base64,${imageBase64}`;
-
-    for (let i = 0; i < groqKeys.length; i++) {
-      const apiKey = groqKeys[i];
-      try {
-        logger.info(`🤖 Groq Vision API key ${i + 1}/${groqKeys.length} deneniyor`);
-
-        const response = await axios.post(
-          'https://api.groq.com/openai/v1/chat/completions',
-          {
-            model: 'llama-3.2-11b-vision-preview',
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'text',
-                    text: `Bu sayfadaki TÜM soruları tespit et ve numaralandır. Her soru için:
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents: [{
+          parts: [
+            {
+              text: `Bu sayfadaki TÜM soruları tespit et ve numaralandır. Her soru için:
 1. Soru numarası
 2. Soru metni (tam olarak)
 3. Soru tipi (çoktan seçmeli, açık uçlu, matematik, fizik, kimya, biyoloji, tarih, coğrafya, vb.)
@@ -108,64 +89,58 @@ JSON formatı:
 ]
 
 Eğer sayfada soru yoksa boş array döndür: []`
-                  },
-                  {
-                    type: 'image_url',
-                    image_url: {
-                      url: imageUrl
-                    }
-                  }
-                ]
-              }
-            ],
-            temperature: 0.3,
-            max_tokens: 4000
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
             },
-            timeout: 45000
-          }
-        );
-
-        logger.success(`✅ Groq Vision API key ${i + 1} başarılı`);
-        
-        const text = response.data.choices[0].message.content;
-        logger.info('📝 Groq Vision text yanıtı alındı', { textLength: text.length });
-        logger.debug('Groq Vision text içeriği', { text: text.substring(0, 500) });
-        
-        // JSON'u bul ve parse et
-        const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-          logger.error('❌ JSON bulunamadı', { text });
-          throw new Error('Yanıtta JSON bulunamadı');
+            {
+              inline_data: {
+                mime_type: "image/jpeg",
+                data: imageBase64
+              }
+            }
+          ]
+        }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4000
         }
-
-        logger.info('✅ JSON bulundu, parse ediliyor');
-        const questions = JSON.parse(jsonMatch[0]);
-        
-        logger.success(`✅ ${questions.length} soru tespit edildi`, { 
-          questionCount: questions.length,
-          questions: questions.map(q => ({ 
-            number: q.questionNumber, 
-            type: q.questionType,
-            textPreview: q.questionText?.substring(0, 50) 
-          }))
-        });
-        
-        return questions;
-      } catch (error) {
-        logger.error(`❌ Groq Vision API key ${i + 1} başarısız`, error);
-        if (i === groqKeys.length - 1) throw error;
+      },
+      { 
+        timeout: 45000,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       }
+    );
+
+    logger.success('✅ Gemini Vision API yanıt aldı');
+    
+    if (!response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      logger.error('❌ Gemini yanıtında text bulunamadı', response.data);
+      throw new Error('Gemini yanıtı geçersiz');
     }
+
+    const text = response.data.candidates[0].content.parts[0].text;
+    logger.info('📝 Gemini text yanıtı alındı', { textLength: text.length });
+    
+    // JSON'u bul ve parse et
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      logger.error('❌ JSON bulunamadı', { text });
+      throw new Error('Yanıtta JSON bulunamadı');
+    }
+
+    logger.info('✅ JSON bulundu, parse ediliyor');
+    const questions = JSON.parse(jsonMatch[0]);
+    
+    logger.success(`✅ ${questions.length} soru tespit edildi`, { 
+      questionCount: questions.length
+    });
+    
+    return questions;
   } catch (error) {
-    logger.error('❌ Groq Vision hatası', error);
+    logger.error('❌ Gemini Vision hatası', error);
     
     if (error.response) {
-      logger.error('Groq API response error', {
+      logger.error('Gemini API response error', {
         status: error.response.status,
         statusText: error.response.statusText,
         data: error.response.data
@@ -205,9 +180,9 @@ exports.scanPage = async (req, res) => {
       base64Length: imageBase64.length
     });
 
-    // Groq Vision ile soruları tespit et
-    logger.info('🔍 Groq Vision ile soru tespiti başlatılıyor');
-    const questions = await analyzeImageWithGroqVision(imageBase64);
+    // Gemini Vision ile soruları tespit et
+    logger.info('🔍 Gemini Vision ile soru tespiti başlatılıyor');
+    const questions = await analyzeImageWithGeminiVision(imageBase64);
 
     const duration = Date.now() - startTime;
     logger.success(`✅ Sayfa tarama tamamlandı (${duration}ms)`, {
