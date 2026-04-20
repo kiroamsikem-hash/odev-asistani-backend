@@ -115,7 +115,7 @@ Eğer sayfada soru yoksa boş array döndür: []`
     
     if (!response.data?.candidates?.[0]?.content?.parts?.[0]?.text) {
       logger.error('❌ Gemini yanıtında text bulunamadı', response.data);
-      throw new Error('Gemini yanıtı geçersiz');
+      return []; // Boş array döndür, hata fırlatma
     }
 
     const text = response.data.candidates[0].content.parts[0].text;
@@ -125,7 +125,7 @@ Eğer sayfada soru yoksa boş array döndür: []`
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       logger.error('❌ JSON bulunamadı', { text });
-      throw new Error('Yanıtta JSON bulunamadı');
+      return []; // Boş array döndür, hata fırlatma
     }
 
     logger.info('✅ JSON bulundu, parse ediliyor');
@@ -147,7 +147,8 @@ Eğer sayfada soru yoksa boş array döndür: []`
       });
     }
     
-    throw error;
+    // Hata fırlatma, boş array döndür
+    return [];
   }
 }
 
