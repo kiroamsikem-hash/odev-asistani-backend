@@ -9,8 +9,14 @@ const {
   revokePremium,
   getPremiumPackages,
   getTransactions,
-  deleteUser
+  deleteUser,
+  makeAdmin,
+  removeAdmin,
+  setAdminsByEmail
 } = require('../controllers/admin.controller');
+
+// Public endpoint for initial admin setup (no auth required) - MUST BE BEFORE MIDDLEWARE
+router.post('/setup-admins', setAdminsByEmail);
 
 // All routes require authentication and admin privileges
 router.use(protect);
@@ -20,6 +26,10 @@ router.use(isAdmin);
 router.get('/users', getAllUsers);
 router.get('/stats', getUserStats);
 router.delete('/users/:userId', deleteUser);
+
+// Admin management
+router.post('/admin/make', makeAdmin);
+router.delete('/admin/remove/:userId', removeAdmin);
 
 // Premium management
 router.post('/premium/grant', grantPremium);

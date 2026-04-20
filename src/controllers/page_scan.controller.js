@@ -208,9 +208,11 @@ exports.scanPage = async (req, res) => {
     logger.info('🔍 Gemini Vision ile soru tespiti başlatılıyor');
     const questions = await analyzeImageWithGeminiVision(imageBase64);
 
-    // Soru bulunamadı kontrolü
+    // Soru bulunamadı kontrolü - CRITICAL: Boş array = başarısız işlem
     if (!questions || questions.length === 0) {
-      logger.warn('⚠️ Sayfada soru bulunamadı');
+      const duration = Date.now() - startTime;
+      logger.warn(`⚠️ Sayfada soru bulunamadı (${duration}ms)`);
+      logger.response(req, res, 400, { success: false, message: 'Soru bulunamadı' });
       return res.status(400).json({
         success: false,
         message: 'Sayfada soru bulunamadı. Lütfen soruların net ve okunaklı olduğundan emin olun.'

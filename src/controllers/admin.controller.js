@@ -270,3 +270,259 @@ exports.deleteUser = async (req, res) => {
     });
   }
 };
+
+// @desc    Make user admin
+exports.makeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    logger.info('👑 Admin yetkisi veriliyor', { userId });
+
+    const query = `
+      UPDATE users
+      SET
+        is_admin = TRUE,
+        daily_limit = 999999
+      WHERE id = $1
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      logger.error('❌ Kullanıcı bulunamadı', { userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+
+    logger.success('✅ Admin yetkisi verildi', result.rows[0]);
+
+    res.json({
+      success: true,
+      message: 'Admin yetkisi verildi',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('❌ Admin yetkisi verilemedi', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin yetkisi verilemedi',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove admin from user
+exports.removeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    logger.info('👑 Admin yetkisi kaldırılıyor', { userId });
+
+    const query = `
+      UPDATE users
+      SET
+        is_admin = FALSE,
+        daily_limit = CASE
+          WHEN is_premium = TRUE THEN daily_limit
+          ELSE 5
+        END
+      WHERE id = $1
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+
+    const result = await pool.query(query, [userId]);
+
+    if (result.rows.length === 0) {
+      logger.error('❌ Kullanıcı bulunamadı', { userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+
+    logger.success('✅ Admin yetkisi kaldırıldı', result.rows[0]);
+
+    res.json({
+      success: true,
+      message: 'Admin yetkisi kaldırıldı',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('❌ Admin yetkisi kaldırılamadı', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin yetkisi kaldırılamadı',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Set admin users by email (for migration/setup)
+exports.setAdminsByEmail = async (req, res) => {
+  try {
+    const adminEmails = ['byazar1628@gmail.com', 'myazar483@gmail.com'];
+
+    logger.info('👑 Admin kullanıcılar ayarlanıyor', { adminEmails });
+
+    const query = `
+      UPDATE users
+      SET
+        is_admin = TRUE,
+        daily_limit = 999999
+      WHERE email = ANY($1)
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+
+    const result = await pool.query(query, [adminEmails]);
+
+    logger.success('✅ Admin kullanıcılar ayarlandı', {
+      count: result.rows.length,
+      admins: result.rows
+    });
+
+    res.json({
+      success: true,
+      message: `${result.rows.length} kullanıcıya admin yetkisi verildi`,
+      data: result.rows
+    });
+  } catch (error) {
+    logger.error('❌ Admin kullanıcılar ayarlanamadı', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin kullanıcılar ayarlanamadı',
+      error: error.message
+    });
+  }
+};
+
+
+
+// @desc    Make user admin
+exports.makeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    logger.info('👑 Admin yetkisi veriliyor', { userId });
+    
+    const query = `
+      UPDATE users 
+      SET 
+        is_admin = TRUE,
+        daily_limit = 999999
+      WHERE id = $1
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      logger.error('❌ Kullanıcı bulunamadı', { userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+    
+    logger.success('✅ Admin yetkisi verildi', result.rows[0]);
+    
+    res.json({
+      success: true,
+      message: 'Admin yetkisi verildi',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('❌ Admin yetkisi verilemedi', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin yetkisi verilemedi',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove admin from user
+exports.removeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    logger.info('👑 Admin yetkisi kaldırılıyor', { userId });
+    
+    const query = `
+      UPDATE users 
+      SET 
+        is_admin = FALSE,
+        daily_limit = CASE 
+          WHEN is_premium = TRUE THEN daily_limit 
+          ELSE 5 
+        END
+      WHERE id = $1
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length === 0) {
+      logger.error('❌ Kullanıcı bulunamadı', { userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+    
+    logger.success('✅ Admin yetkisi kaldırıldı', result.rows[0]);
+    
+    res.json({
+      success: true,
+      message: 'Admin yetkisi kaldırıldı',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    logger.error('❌ Admin yetkisi kaldırılamadı', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin yetkisi kaldırılamadı',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Set admin users by email (for migration/setup)
+exports.setAdminsByEmail = async (req, res) => {
+  try {
+    const adminEmails = ['byazar1628@gmail.com', 'myazar483@gmail.com'];
+    
+    logger.info('👑 Admin kullanıcılar ayarlanıyor', { adminEmails });
+    
+    const query = `
+      UPDATE users 
+      SET 
+        is_admin = TRUE,
+        daily_limit = 999999
+      WHERE email = ANY($1)
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+    
+    const result = await pool.query(query, [adminEmails]);
+    
+    logger.success('✅ Admin kullanıcılar ayarlandı', { 
+      count: result.rows.length,
+      admins: result.rows 
+    });
+    
+    res.json({
+      success: true,
+      message: `${result.rows.length} kullanıcıya admin yetkisi verildi`,
+      data: result.rows
+    });
+  } catch (error) {
+    logger.error('❌ Admin kullanıcılar ayarlanamadı', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin kullanıcılar ayarlanamadı',
+      error: error.message
+    });
+  }
+};

@@ -25,7 +25,15 @@ class User {
 
   // Find by ID
   static async findById(id) {
-    const query = 'SELECT id, name, email, education_level, is_premium, daily_question_count, last_question_date, avatar, created_at FROM users WHERE id = $1';
+    const query = `
+      SELECT 
+        id, name, email, education_level, 
+        is_premium, premium_tier, premium_expires_at, 
+        daily_limit, daily_question_count, last_question_date, 
+        is_admin, avatar, created_at 
+      FROM users 
+      WHERE id = $1
+    `;
     const result = await pool.query(query, [id]);
     return result.rows[0];
   }
