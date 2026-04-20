@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const logger = require('../utils/logger');
 
 // @desc    Get premium packages
 exports.getPackages = async (req, res) => {

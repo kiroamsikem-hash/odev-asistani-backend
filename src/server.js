@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const dotenv = require('dotenv');
 const path = require('path');
+const logger = require('./utils/logger');
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -32,6 +33,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  logger.request(req);
+  next();
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/questions', require('./routes/question.routes'));
@@ -42,6 +49,7 @@ app.use('/api/flashcards', require('./routes/flashcard.routes'));
 app.use('/api/study', require('./routes/study.routes'));
 app.use('/api/premium', require('./routes/premium.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/page-scan', require('./routes/page_scan.routes'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -198,10 +206,13 @@ app.get('/api/run-migration', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error('❌ Global error handler', err);
+  logger.response(req, res, err.status || 500);
+  
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal Server Error'
+    message: err.message || 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 
@@ -221,5 +232,7 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  logger.success(`🚀 Server running on port ${PORT}`);
+  logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
 });

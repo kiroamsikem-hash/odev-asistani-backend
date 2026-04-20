@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Flashcard = require('../models/Flashcard.model');
+const logger = require('../utils/logger');
 
 // AI Provider (Groq)
 async function callGroq(prompt, systemPrompt) {

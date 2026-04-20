@@ -1,4 +1,5 @@
 const StudySession = require('../models/StudySession.model');
+const logger = require('../utils/logger');
 
 // @desc    Create study session
 exports.createSession = async (req, res) => {

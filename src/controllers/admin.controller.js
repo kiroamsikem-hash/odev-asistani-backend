@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const logger = require('../utils/logger');
 
 // @desc    Get all users (Admin only)
 exports.getAllUsers = async (req, res) => {

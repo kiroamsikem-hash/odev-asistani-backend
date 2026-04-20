@@ -1,5 +1,6 @@
 const User = require('../models/User.model');
 const Question = require('../models/Question.model');
+const logger = require('../utils/logger');
 
 // @desc    Get user profile
 exports.getProfile = async (req, res) => {

@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Question = require('../models/Question.model');
+const logger = require('../utils/logger');
 
 // Sokratik Öğretmen Promptu
 function getSocraticPrompt(gradeLevel) {

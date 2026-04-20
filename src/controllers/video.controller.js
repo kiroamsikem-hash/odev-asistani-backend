@@ -1,5 +1,6 @@
 const axios = require('axios');
 const VideoNote = require('../models/VideoNote.model');
+const logger = require('../utils/logger');
 
 // AI Provider (Groq kullanacağız)
 async function callGroq(prompt, systemPrompt) {

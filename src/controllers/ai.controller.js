@@ -1,6 +1,7 @@
 const axios = require('axios');
 const Question = require('../models/Question.model');
 const { getCachedAnswer, cacheAnswer } = require('../config/redis');
+const logger = require('../utils/logger');
 
 // AI Providers - Sırayla denenecek
 const AI_PROVIDERS = [
@@ -271,10 +272,20 @@ Doğrudan cevap verme, öğrencinin düşünmesini ve anlamasını sağla!`;
 
 // @desc    Solve question with AI
 exports.solveQuestion = async (req, res) => {
+  const startTime = Date.now();
+  
   try {
+    logger.request(req);
+    logger.info('📝 Soru çözme işlemi başlatıldı', {
+      userId: req.user.id,
+      userEmail: req.user.email,
+      questionPreview: req.body.question?.substring(0, 100)
+    });
+
     const { question, type, educationLevel } = req.body;
 
     if (!question) {
+      logger.warn('❌ Soru metni eksik');
       return res.status(400).json({
         success: false,
         message: 'Soru metni gereklidir'
@@ -282,10 +293,16 @@ exports.solveQuestion = async (req, res) => {
     }
 
     const gradeLevel = educationLevel || req.user.grade || 9;
+    logger.info('📚 Sınıf seviyesi belirlendi', { gradeLevel });
     
     // 🚀 CACHE KONTROLÜ - Benzer soru daha önce çözüldü mü?
+    logger.info('🔍 Cache kontrol ediliyor...');
     const cached = await getCachedAnswer(question, gradeLevel);
     if (cached) {
+      logger.success('✅ Cache\'den yanıt bulundu!');
+      const duration = Date.now() - startTime;
+      logger.info(`⏱️ İşlem süresi: ${duration}ms`);
+      logger.response(req, res, 200, { fromCache: true });
       return res.json({
         success: true,
         data: {
@@ -294,6 +311,7 @@ exports.solveQuestion = async (req, res) => {
         }
       });
     }
+    logger.info('ℹ️ Cache\'de bulunamadı, AI çağrısı yapılacak');
 
     const teacherPrompt = getTeacherPrompt(gradeLevel);
 
@@ -301,9 +319,12 @@ exports.solveQuestion = async (req, res) => {
 
 Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açıkla.`;
 
+    logger.info('🤖 AI servisi çağrılıyor...');
     const answer = await callAI(prompt, teacherPrompt);
+    logger.success('✅ AI yanıtı alındı', { answerLength: answer.length });
 
     // Save to database
+    logger.info('💾 Veritabanına kaydediliyor...');
     const savedQuestion = await Question.create({
       userId: req.user.id,
       type: type || 'genel',
@@ -311,6 +332,7 @@ Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açı
       answer,
       subject: type
     });
+    logger.success('✅ Veritabanına kaydedildi', { questionId: savedQuestion.id });
 
     const responseData = {
       id: savedQuestion.id,
@@ -324,13 +346,23 @@ Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açı
     };
 
     // 🚀 CACHE'E KAYDET - Bir dahaki sefere AI çağrısı yapma
+    logger.info('💾 Cache\'e kaydediliyor...');
     await cacheAnswer(question, gradeLevel, responseData);
+    logger.success('✅ Cache\'e kaydedildi');
+
+    const duration = Date.now() - startTime;
+    logger.success(`✅ Soru çözme işlemi tamamlandı! Süre: ${duration}ms`);
+    logger.response(req, res, 200, { questionId: savedQuestion.id });
 
     res.json({
       success: true,
       data: responseData
     });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(`❌ Soru çözme hatası (${duration}ms)`, error);
+    logger.response(req, res, 500);
+    
     res.status(500).json({
       success: false,
       message: 'Soru çözülürken hata oluştu',
@@ -341,22 +373,27 @@ Lütfen bu soruyu ${gradeLevel}. sınıf seviyesinde, adım adım çöz ve açı
 
 // @desc    Perform OCR on image
 exports.performOCR = async (req, res) => {
+  const startTime = Date.now();
+  
   try {
-    console.log('🔍 OCR endpoint çağrıldı');
-    console.log('📋 Request headers:', req.headers);
-    console.log('👤 User:', req.user?.email);
+    logger.request(req);
+    logger.info('🔍 OCR endpoint çağrıldı', {
+      userId: req.user.id,
+      userEmail: req.user.email
+    });
     
     if (!req.file) {
-      console.log('❌ Dosya bulunamadı');
+      logger.warn('❌ Dosya bulunamadı');
       return res.status(400).json({
         success: false,
         message: 'Resim dosyası gereklidir'
       });
     }
 
-    console.log('📸 OCR işlemi başlatılıyor...');
-    console.log('Dosya boyutu:', req.file.size, 'bytes');
-    console.log('Dosya tipi:', req.file.mimetype);
+    logger.info('📸 OCR işlemi başlatılıyor...', {
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype
+    });
 
     // Convert image to base64
     const base64Image = req.file.buffer.toString('base64');
@@ -371,12 +408,12 @@ exports.performOCR = async (req, res) => {
       process.env.GROQ_API_KEY_5,
     ].filter(key => key && key !== 'your-groq-api-key');
 
-    console.log(`🔍 Groq API key sayısı: ${groqKeys.length}`);
+    logger.info(`🔍 Groq API key sayısı: ${groqKeys.length}`);
 
     if (groqKeys.length > 0) {
       for (const apiKey of groqKeys) {
         try {
-          console.log(`🤖 Groq Vision ile OCR deneniyor... (${groqKeys.indexOf(apiKey) + 1}/${groqKeys.length})`);
+          logger.info(`🤖 Groq Vision ile OCR deneniyor... (${groqKeys.indexOf(apiKey) + 1}/${groqKeys.length})`);
           
           const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
@@ -449,8 +486,11 @@ exports.performOCR = async (req, res) => {
           .replace(/\s+/g, ' ')
           .trim();
         
-        console.log('✅ Groq Vision OCR başarılı!');
-        console.log('Çıkarılan metin uzunluğu:', extractedText.length, 'karakter');
+        const duration = Date.now() - startTime;
+        logger.success(`✅ Groq Vision OCR başarılı! Süre: ${duration}ms`, {
+          textLength: extractedText.length
+        });
+        logger.response(req, res, 200, { textLength: extractedText.length });
         
         return res.json({
           success: true,
@@ -460,22 +500,22 @@ exports.performOCR = async (req, res) => {
         });
       } catch (groqError) {
         const errorMsg = groqError.response?.data?.error?.message || groqError.message;
-        console.log(`❌ Groq key ${groqKeys.indexOf(apiKey) + 1} hatası: ${errorMsg}`);
+        logger.error(`❌ Groq key ${groqKeys.indexOf(apiKey) + 1} hatası: ${errorMsg}`, groqError);
         // Eğer son key de başarısızsa Gemini'ye geç
         if (groqKeys.indexOf(apiKey) === groqKeys.length - 1) {
-          console.log('❌ Tüm Groq API key\'leri başarısız oldu');
+          logger.warn('❌ Tüm Groq API key\'leri başarısız oldu');
           break; // Groq döngüsünden çık, Gemini'yi dene
         }
       }
     }
   } else {
-    console.log('❌ Groq API key bulunamadı');
+    logger.warn('❌ Groq API key bulunamadı');
   }
 
     // 2. GROQ BAŞARISIZSA GEMİNİ VISION DENE
     if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your-gemini-api-key') {
       try {
-        console.log('🤖 Gemini Vision ile OCR deneniyor...');
+        logger.info('🤖 Gemini Vision ile OCR deneniyor...');
         
         const response = await axios.post(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -545,8 +585,11 @@ exports.performOCR = async (req, res) => {
             .replace(/\s+/g, ' ')
             .trim();
           
-          console.log('✅ Gemini Vision OCR başarılı!');
-          console.log('Çıkarılan metin uzunluğu:', extractedText.length, 'karakter');
+          const duration = Date.now() - startTime;
+          logger.success(`✅ Gemini Vision OCR başarılı! Süre: ${duration}ms`, {
+            textLength: extractedText.length
+          });
+          logger.response(req, res, 200, { textLength: extractedText.length });
           
           return res.json({
             success: true,
@@ -556,19 +599,25 @@ exports.performOCR = async (req, res) => {
           });
         }
       } catch (geminiError) {
-        console.log('❌ Gemini Vision hatası:', geminiError.response?.data || geminiError.message);
+        logger.error('❌ Gemini Vision hatası', geminiError);
       }
     }
 
     // 3. HİÇBİRİ ÇALIŞMAZSA HATA VER
-    console.error('❌ Tüm OCR servisleri başarısız');
+    const duration = Date.now() - startTime;
+    logger.error(`❌ Tüm OCR servisleri başarısız (${duration}ms)`);
+    logger.response(req, res, 500);
+    
     return res.status(500).json({
       success: false,
       message: 'OCR için çalışan bir AI servisi bulunamadı. Groq API key\'lerinizi kontrol edin.'
     });
 
   } catch (error) {
-    console.error('❌ OCR işlemi başarısız:', error.message);
+    const duration = Date.now() - startTime;
+    logger.error(`❌ OCR işlemi başarısız (${duration}ms)`, error);
+    logger.response(req, res, 500);
+    
     res.status(500).json({
       success: false,
       message: 'OCR işlemi sırasında hata oluştu',

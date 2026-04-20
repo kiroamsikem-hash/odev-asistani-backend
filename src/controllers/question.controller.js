@@ -1,4 +1,5 @@
 const Question = require('../models/Question.model');
+const logger = require('../utils/logger');
 
 // @desc    Get user's question history
 exports.getQuestions = async (req, res) => {

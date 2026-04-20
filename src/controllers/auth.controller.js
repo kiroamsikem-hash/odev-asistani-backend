@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User.model');
+const logger = require('../utils/logger');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -11,17 +12,24 @@ const generateToken = (id) => {
 
 // @desc    Register new user
 exports.register = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
+  const startTime = Date.now();
+  
   try {
+    logger.info('📝 Yeni kullanıcı kaydı başlatıldı', { email: req.body.email });
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('❌ Validasyon hatası', { errors: errors.array() });
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { name, email, password, educationLevel } = req.body;
 
     // Check if user exists
+    logger.info('🔍 Email kontrolü yapılıyor...');
     const userExists = await User.findByEmail(email);
     if (userExists) {
+      logger.warn('❌ Email zaten kayıtlı', { email });
       return res.status(400).json({
         success: false,
         message: 'Bu email zaten kayıtlı'
@@ -29,14 +37,20 @@ exports.register = async (req, res) => {
     }
 
     // Create user
+    logger.info('💾 Kullanıcı oluşturuluyor...');
     const user = await User.create({
       name,
       email,
       password,
       educationLevel: educationLevel || 'lise'
     });
+    logger.success('✅ Kullanıcı oluşturuldu', { userId: user.id, email: user.email });
 
     const token = generateToken(user.id);
+    
+    const duration = Date.now() - startTime;
+    logger.success(`✅ Kayıt başarılı! Süre: ${duration}ms`, { userId: user.id });
+    logger.response(req, res, 201, { userId: user.id });
 
     res.status(201).json({
       success: true,
@@ -50,6 +64,10 @@ exports.register = async (req, res) => {
       }
     });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(`❌ Kayıt hatası (${duration}ms)`, error);
+    logger.response(req, res, 500);
+    
     res.status(500).json({
       success: false,
       message: 'Kayıt sırasında hata oluştu',
@@ -60,17 +78,24 @@ exports.register = async (req, res) => {
 
 // @desc    Login user
 exports.login = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ success: false, errors: errors.array() });
-  }
-
+  const startTime = Date.now();
+  
   try {
+    logger.info('🔐 Giriş denemesi', { email: req.body.email });
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      logger.warn('❌ Validasyon hatası', { errors: errors.array() });
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { email, password } = req.body;
 
     // Check user exists
+    logger.info('🔍 Kullanıcı aranıyor...');
     const user = await User.findByEmail(email);
     if (!user) {
+      logger.warn('❌ Kullanıcı bulunamadı', { email });
       return res.status(401).json({
         success: false,
         message: 'Email veya şifre hatalı'
@@ -78,8 +103,10 @@ exports.login = async (req, res) => {
     }
 
     // Check password
+    logger.info('🔑 Şifre kontrol ediliyor...');
     const isMatch = await User.comparePassword(password, user.password);
     if (!isMatch) {
+      logger.warn('❌ Şifre hatalı', { email });
       return res.status(401).json({
         success: false,
         message: 'Email veya şifre hatalı'
@@ -87,6 +114,10 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user.id);
+    
+    const duration = Date.now() - startTime;
+    logger.success(`✅ Giriş başarılı! Süre: ${duration}ms`, { userId: user.id, email: user.email });
+    logger.response(req, res, 200, { userId: user.id });
 
     res.json({
       success: true,
@@ -100,6 +131,10 @@ exports.login = async (req, res) => {
       }
     });
   } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(`❌ Giriş hatası (${duration}ms)`, error);
+    logger.response(req, res, 500);
+    
     res.status(500).json({
       success: false,
       message: 'Giriş sırasında hata oluştu',
