@@ -15,6 +15,7 @@ exports.getProfile = async (req, res) => {
         email: user.email,
         educationLevel: user.education_level,
         isPremium: user.is_premium,
+        isAdmin: user.is_admin || false,
         avatar: user.avatar,
         createdAt: user.created_at
       }
