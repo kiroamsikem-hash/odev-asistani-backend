@@ -75,7 +75,7 @@ async function callGemini(prompt, systemPrompt) {
   const fullPrompt = `${systemPrompt}\n\n${prompt}`;
   
   const response = await axios.post(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
     {
       contents: [{
         parts: [{
@@ -518,7 +518,7 @@ exports.performOCR = async (req, res) => {
         logger.info('🤖 Gemini Vision ile OCR deneniyor...');
         
         const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
           {
             contents: [{
               parts: [
@@ -873,7 +873,7 @@ Basit format kullan, LaTeX kullanma! Üslü sayılar için x^2, kesirler için 3
         console.log('🤖 Gemini Vision deneniyor...');
         
         const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
           {
             contents: [{
               parts: [
