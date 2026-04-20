@@ -15,9 +15,6 @@ const {
   setAdminsByEmail
 } = require('../controllers/admin.controller');
 
-// Public endpoint for initial admin setup (no auth required) - MUST BE BEFORE MIDDLEWARE
-router.post('/setup-admins', setAdminsByEmail);
-
 // All routes require authentication and admin privileges
 router.use(protect);
 router.use(isAdmin);

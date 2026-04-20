@@ -56,6 +56,45 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Public admin setup endpoint (no auth required)
+app.post('/api/admin/setup-admins', async (req, res) => {
+  try {
+    const { pool } = require('./config/database');
+    const adminEmails = ['byazar1628@gmail.com', 'myazar483@gmail.com'];
+    
+    logger.info('👑 Admin kullanıcılar ayarlanıyor', { adminEmails });
+    
+    const query = `
+      UPDATE users 
+      SET 
+        is_admin = TRUE,
+        daily_limit = 999999
+      WHERE email = ANY($1)
+      RETURNING id, name, email, is_admin, daily_limit
+    `;
+    
+    const result = await pool.query(query, [adminEmails]);
+    
+    logger.success('✅ Admin kullanıcılar ayarlandı', { 
+      count: result.rows.length,
+      admins: result.rows 
+    });
+    
+    res.json({
+      success: true,
+      message: `${result.rows.length} kullanıcıya admin yetkisi verildi`,
+      data: result.rows
+    });
+  } catch (error) {
+    logger.error('❌ Admin kullanıcılar ayarlanamadı', error);
+    res.status(500).json({
+      success: false,
+      message: 'Admin kullanıcılar ayarlanamadı',
+      error: error.message
+    });
+  }
+});
+
 // Database check
 app.get('/api/db-check', async (req, res) => {
   try {
