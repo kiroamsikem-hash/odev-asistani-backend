@@ -7,6 +7,13 @@ exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     
+    logger.info('👤 Profil getiriliyor', { 
+      userId: user.id, 
+      email: user.email,
+      isPremium: user.is_premium,
+      premiumTier: user.premium_tier 
+    });
+    
     res.json({
       success: true,
       data: {
@@ -15,12 +22,16 @@ exports.getProfile = async (req, res) => {
         email: user.email,
         educationLevel: user.education_level,
         isPremium: user.is_premium,
+        premiumTier: user.premium_tier || 'free',
+        premiumExpiresAt: user.premium_expires_at,
+        dailyLimit: user.daily_limit || 5,
         isAdmin: user.is_admin || false,
         avatar: user.avatar,
         createdAt: user.created_at
       }
     });
   } catch (error) {
+    logger.error('❌ Profil getirme hatası', error);
     res.status(500).json({
       success: false,
       message: 'Profil getirilirken hata oluştu',

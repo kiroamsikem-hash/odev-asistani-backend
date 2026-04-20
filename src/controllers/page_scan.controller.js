@@ -166,6 +166,17 @@ exports.scanPage = async (req, res) => {
       });
     }
 
+    // Dosya boyutu kontrolü
+    if (req.file.size < 1000) {
+      logger.error('❌ Resim dosyası çok küçük (boş olabilir)', {
+        size: req.file.size
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Resim dosyası geçersiz veya boş'
+      });
+    }
+
     logger.info('📸 Resim dosyası alındı', {
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
@@ -176,6 +187,18 @@ exports.scanPage = async (req, res) => {
     // Base64'e çevir
     logger.info('🔄 Base64 dönüşümü yapılıyor');
     const imageBase64 = req.file.buffer.toString('base64');
+    
+    // Base64 içerik kontrolü
+    if (imageBase64.length < 100) {
+      logger.error('❌ Base64 içerik çok küçük', {
+        base64Length: imageBase64.length
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Resim içeriği geçersiz'
+      });
+    }
+    
     logger.success('✅ Base64 dönüşümü tamamlandı', {
       base64Length: imageBase64.length
     });
@@ -183,6 +206,15 @@ exports.scanPage = async (req, res) => {
     // Gemini Vision ile soruları tespit et
     logger.info('🔍 Gemini Vision ile soru tespiti başlatılıyor');
     const questions = await analyzeImageWithGeminiVision(imageBase64);
+
+    // Soru bulunamadı kontrolü
+    if (!questions || questions.length === 0) {
+      logger.warn('⚠️ Sayfada soru bulunamadı');
+      return res.status(400).json({
+        success: false,
+        message: 'Sayfada soru bulunamadı. Lütfen soruların net ve okunaklı olduğundan emin olun.'
+      });
+    }
 
     const duration = Date.now() - startTime;
     logger.success(`✅ Sayfa tarama tamamlandı (${duration}ms)`, {

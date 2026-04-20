@@ -77,11 +77,14 @@ exports.grantPremium = async (req, res) => {
   try {
     const { userId, packageId, duration = 30 } = req.body;
     
+    logger.info('🎁 Premium veriliyor', { userId, packageId, duration });
+    
     // Get package details
     const packageQuery = 'SELECT * FROM premium_packages WHERE id = $1';
     const packageResult = await pool.query(packageQuery, [packageId]);
     
     if (packageResult.rows.length === 0) {
+      logger.error('❌ Paket bulunamadı', { packageId });
       return res.status(404).json({
         success: false,
         message: 'Paket bulunamadı'
@@ -92,6 +95,12 @@ exports.grantPremium = async (req, res) => {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + duration);
     
+    logger.info('📦 Paket bilgileri', { 
+      packageName: pkg.name, 
+      dailyLimit: pkg.daily_limit,
+      expiresAt 
+    });
+    
     // Update user
     const updateQuery = `
       UPDATE users 
@@ -101,7 +110,7 @@ exports.grantPremium = async (req, res) => {
         premium_expires_at = $2,
         daily_limit = $3
       WHERE id = $4
-      RETURNING id, name, email, premium_tier, premium_expires_at, daily_limit
+      RETURNING id, name, email, premium_tier, premium_expires_at, daily_limit, is_premium
     `;
     
     const result = await pool.query(updateQuery, [
@@ -111,6 +120,16 @@ exports.grantPremium = async (req, res) => {
       userId
     ]);
     
+    if (result.rows.length === 0) {
+      logger.error('❌ Kullanıcı bulunamadı', { userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Kullanıcı bulunamadı'
+      });
+    }
+    
+    logger.success('✅ Kullanıcı güncellendi', result.rows[0]);
+    
     // Create transaction record
     await pool.query(
       `INSERT INTO premium_transactions (user_id, package_id, amount, payment_method, status)
@@ -118,12 +137,15 @@ exports.grantPremium = async (req, res) => {
       [userId, packageId, 0, 'admin_grant', 'completed']
     );
     
+    logger.success('✅ Transaction kaydedildi');
+    
     res.json({
       success: true,
       message: 'Premium başarıyla verildi',
       data: result.rows[0]
     });
   } catch (error) {
+    logger.error('❌ Premium verilemedi', error);
     res.status(500).json({
       success: false,
       message: 'Premium verilemedi',
