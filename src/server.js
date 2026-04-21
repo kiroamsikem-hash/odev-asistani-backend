@@ -39,24 +39,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/questions', require('./routes/question.routes'));
-app.use('/api/ai', require('./routes/ai.routes'));
-app.use('/api/users', require('./routes/user.routes'));
-app.use('/api/video', require('./routes/video.routes'));
-app.use('/api/flashcards', require('./routes/flashcard.routes'));
-app.use('/api/study', require('./routes/study.routes'));
-app.use('/api/premium', require('./routes/premium.routes'));
-app.use('/api/admin', require('./routes/admin.routes'));
-app.use('/api/page-scan', require('./routes/page_scan.routes'));
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running' });
-});
-
-// Public admin setup endpoint (no auth required)
+// Public admin setup endpoint (MUST be before routes to avoid auth middleware)
 app.post('/api/admin/setup-admins', async (req, res) => {
   try {
     const { pool } = require('./config/database');
@@ -93,6 +76,23 @@ app.post('/api/admin/setup-admins', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Routes
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/questions', require('./routes/question.routes'));
+app.use('/api/ai', require('./routes/ai.routes'));
+app.use('/api/users', require('./routes/user.routes'));
+app.use('/api/video', require('./routes/video.routes'));
+app.use('/api/flashcards', require('./routes/flashcard.routes'));
+app.use('/api/study', require('./routes/study.routes'));
+app.use('/api/premium', require('./routes/premium.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/page-scan', require('./routes/page_scan.routes'));
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
 });
 
 // Database check
