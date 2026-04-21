@@ -39,8 +39,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Public admin setup endpoint (MUST be before routes to avoid auth middleware)
-app.post('/api/admin/setup-admins', async (req, res) => {
+// Public admin setup endpoint (different path to avoid admin routes middleware)
+app.post('/api/setup-admins', async (req, res) => {
   try {
     const { pool } = require('./config/database');
     const adminEmails = ['byazar1628@gmail.com', 'myazar483@gmail.com'];
