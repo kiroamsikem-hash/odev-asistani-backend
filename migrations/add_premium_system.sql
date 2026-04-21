@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS premium_transactions (
 CREATE INDEX idx_premium_transactions_user ON premium_transactions(user_id);
 CREATE INDEX idx_premium_transactions_status ON premium_transactions(status);
 
--- Set admin users
-UPDATE users SET is_admin = TRUE WHERE email IN ('byazar1628@gmail.com', 'myazar483@gmail.com');
+-- Set admin users with unlimited daily limit
+UPDATE users SET is_admin = TRUE, daily_limit = 999999 WHERE email IN ('byazar1628@gmail.com', 'myazar483@gmail.com');
 
 -- Update existing premium users
 UPDATE users SET daily_limit = 20 WHERE is_premium = TRUE AND premium_tier = 'free';
