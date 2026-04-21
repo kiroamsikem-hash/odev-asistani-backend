@@ -78,6 +78,32 @@ app.post('/api/setup-admins', async (req, res) => {
   }
 });
 
+// Check admin users (public endpoint for testing)
+app.get('/api/check-admins', async (req, res) => {
+  try {
+    const { pool } = require('./config/database');
+    
+    const query = `
+      SELECT id, name, email, is_admin, daily_limit, premium_tier
+      FROM users 
+      WHERE email IN ('byazar1628@gmail.com', 'myazar483@gmail.com')
+    `;
+    
+    const result = await pool.query(query);
+    
+    res.json({
+      success: true,
+      admins: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Admin kullanıcılar kontrol edilemedi',
+      error: error.message
+    });
+  }
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/questions', require('./routes/question.routes'));
